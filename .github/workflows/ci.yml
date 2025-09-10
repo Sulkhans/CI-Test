@@ -136,18 +136,25 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Configure Docker for GCP
-        run: gcloud auth configure-docker gcr.io
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev
 
-      - name: Build and push to GCR
+      - name: Create Artifact Registry repository (if not exists)
+        run: |
+          gcloud artifacts repositories create my-app-repo \
+            --repository-format=docker \
+            --location=us-central1 \
+            --description="Docker repository for my-app" || true
+
+      - name: Build and push to Artifact Registry
         uses: docker/build-push-action@v5
         with:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            gcr.io/${{ secrets.GCP_PROJECT_ID }}/my-app:latest
-            gcr.io/${{ secrets.GCP_PROJECT_ID }}/my-app:${{ github.sha }}
+            us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/my-app-repo/my-app:latest
+            us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/my-app-repo/my-app:${{ github.sha }}
             sulkhan16/my-app:latest
             sulkhan16/my-app:${{ github.sha }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -157,7 +164,7 @@ jobs:
       - name: Deploy to Cloud Run
         run: |
           gcloud run deploy my-app \
-            --image=gcr.io/${{ secrets.GCP_PROJECT_ID }}/my-app:latest \
+            --image=us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/my-app-repo/my-app:latest \
             --region=us-central1 \
             --platform=managed \
             --allow-unauthenticated \
