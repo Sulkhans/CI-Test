@@ -74,7 +74,7 @@ jobs:
           # Fetch full history so we can push to other branches
           fetch-depth: 0
           # Use a token that has permission to push to protected branches
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.PAT_TOKEN }}
 
       - name: Configure Git
         run: |
