@@ -1,5 +1,5 @@
 # .github/workflows/ci.yml
-name: Multi-Branch CI Pipeline
+name: Multi-Branch CI/CD Pipeline
 
 # When should this workflow run?
 on:
@@ -29,13 +29,13 @@ jobs:
       - name: Run unit tests
         run: npm test
 
-  # Docker build test - only on staging and main branches
+  # Docker build test
   docker-build:
     name: Docker Build Test
     runs-on: ubuntu-latest
     needs: basic-tests
-    # Only run on staging and main branches
-    if: github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/development'
+    # Only run on development and staging branches
+    if: github.ref == 'refs/heads/development' || github.ref == 'refs/heads/staging'
 
     steps:
       - name: Checkout code
@@ -60,3 +60,38 @@ jobs:
           # Clean up
           docker stop test-container
           docker rm test-container
+
+  promote-to-staging:
+    name: Promote to Staging
+    runs-on: ubuntu-latest
+    needs: [basic-tests, docker-build]
+    # Only run when pushing to development branch AND all tests pass
+    if: github.ref == 'refs/heads/development'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          # Fetch full history so we can push to other branches
+          fetch-depth: 0
+          # Use a token that has permission to push to protected branches
+          token: ${{ secrets.PAT_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
+      - name: Promote to staging branch
+        run: |
+          # Switch to staging branch
+          git checkout staging
+          # Merge the development branch
+          git merge origin/development --no-ff -m "Auto-merge development to staging after successful tests"
+          # Push to staging
+          git push origin staging
+
+      - name: Notify promotion success
+        run: |
+          echo "✅ Successfully promoted development to staging branch!"
+          echo "Commit SHA: ${{ github.sha }}"
+          echo "All tests passed and code is now available in staging"
