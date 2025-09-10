@@ -137,3 +137,28 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for GCP
+        run: gcloud auth configure-docker gcr.io
+
+      - name: Tag and push to GCR
+        run: |
+          docker tag sulkhan16/my-app:latest gcr.io/${{ secrets.GCP_PROJECT_ID }}/my-app:latest
+          docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/my-app:latest
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy my-app \
+            --image=gcr.io/${{ secrets.GCP_PROJECT_ID }}/my-app:latest \
+            --region=us-central1 \
+            --platform=managed \
+            --allow-unauthenticated \
+            --quiet
