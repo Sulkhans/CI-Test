@@ -127,17 +127,7 @@ jobs:
             type=sha,prefix={{branch}}-
             type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          platforms: linux/amd64,linux/arm64 # Multi-platform build
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
+      # Updated Google Cloud authentication
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
@@ -149,10 +139,20 @@ jobs:
       - name: Configure Docker for GCP
         run: gcloud auth configure-docker gcr.io
 
-      - name: Tag and push to GCR
-        run: |
-          docker tag sulkhan16/my-app:latest gcr.io/${{ secrets.GCP_PROJECT_ID }}/my-app:latest
-          docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/my-app:latest
+      - name: Build and push to GCR
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            gcr.io/${{ secrets.GCP_PROJECT_ID }}/my-app:latest
+            gcr.io/${{ secrets.GCP_PROJECT_ID }}/my-app:${{ github.sha }}
+            sulkhan16/my-app:latest
+            sulkhan16/my-app:${{ github.sha }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Deploy to Cloud Run
         run: |
